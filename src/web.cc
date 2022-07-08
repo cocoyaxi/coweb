@@ -186,14 +186,12 @@ namespace web {
 	void ServerImpl::on_connection(tcp::Connection conn) {
 		char c;
 		int r = 0;
-		size_t pos = 0, total_len = 0;
+		size_t pos = 0;
 		fastring buf;
 		Json res;
 		REQ req;
 		bool keep_alive = false ,isupgade=false;
-
 		req.ip = co::peer(conn.socket());//get ip
-
 		req.set(conn);
 		_on_connect(&req);
 		god::bless_no_bugs();
@@ -213,7 +211,6 @@ namespace web {
 					buf.reserve(4096);
 					buf.append(c);
 				}
-
 				// recv until the entire http header was done.
 				while (true) {
 					if (buf.size() > FLG_web_max_header_size) goto header_too_long_err;
@@ -274,8 +271,6 @@ namespace web {
 							}
 							buf.resize(buf.size() + r);
 						}
-						
-						
 						//分块
 						{
 							bool ischunk = req.req.has_member("transfer-encoding");//分块
@@ -337,27 +332,19 @@ namespace web {
 							}
 						}
 						_on_body(&req);
+						buf.resize(0); req.body_bin.clear(); req.req.reset(); req.err.clear();
 						if (!keep_alive)
 						{
 							co::sleep(60000);//等待60秒响应数据
 							goto closed;
 						}
 					}
-
 					else if (reqlen == -1)
 					{
 						goto recv_zero_err;
 					}
 				}
 			};
-			if (buf.size() == total_len) {
-				buf.clear();
-			}
-			else {
-				buf.lshift(total_len);
-			}
-			total_len = 0;
-			if (_stopped) goto reset_conn;
 		}
 
 	recv_zero_err:

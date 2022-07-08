@@ -199,8 +199,8 @@ namespace web
 		return -2;
 	}
 
-	int parse_web_chunk(fastring* buf, Json* req) {
-	}
+
+
 	Json parse_form_data(fastring& body, bool utf8)
 	{
 		Json r;
