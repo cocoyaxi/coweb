@@ -11,8 +11,8 @@ AlwaysBreakBeforeMultilineStrings: 'false'
 AllowShortCaseLabelsOnASingleLine: 'true'
 AlignTrailingComments: 'true'
 
-AllowShortBlocksOnASingleLine: 'true'
-
+AllowShortBlocksOnASingleLine: 'false'
+AllowShortIfStatementsOnASingleLine: 'true'
 BinPackArguments: 'true'
 BinPackParameters: 'true'
 ColumnLimit: '150'

@@ -44,4 +44,6 @@ class RES {
 };
 int  parse_web_headers(fastring* buf, Json* req);
 Json parse_form_data(fastring& body, bool utf8 = true);
+Json parse_form_query(Json& json, bool isUTF8);
+Json parse_form_urlencoded(fastring& body, bool isUTF8);
 }  // namespace web

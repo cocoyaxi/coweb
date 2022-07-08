@@ -1,6 +1,7 @@
 #include "coweb/http1.h"
 #include "co/co.h"
 #include "coweb/Encodec.h"
+#include "co/hash.h"
 #include "picohttpparser/picohttpparser.h"
 namespace web {
 REQ::REQ() {
@@ -215,5 +216,80 @@ Json parse_form_data(fastring& body, bool utf8) {
         i = ptr_value + ptr_value_len + 2;
     }
     return r;
+}
+
+Json parse_form_query(Json& body,bool isUTF8) {
+    Json   j;
+    size_t k_ptr, k_len, v_ptr, v_len;
+    auto   path = body.get("path").as_string();
+    auto   ptr  = path.find("?");
+    if (ptr == path.npos) {
+        return j;
+    }
+    k_ptr = ptr + 1;
+    for (;;) {
+        k_len = path.find("=", k_ptr);
+        if (k_len == path.npos) {
+            break;
+        }
+        k_len      = k_len - k_ptr;
+        fastring k = url_decode(path.data() + k_ptr, k_len);
+        if (isUTF8) {
+            k = Encode::UTF8ToGBK(k.c_str());
+        }
+        v_ptr     = k_len + k_ptr+1;
+        v_len      = path.find("&", v_ptr);       
+        if (v_len == path.npos) {  //到达最后一个
+            v_len=path.size()-v_ptr;
+            fastring v = url_decode(path.data() + v_ptr, v_len);
+            if (isUTF8) { v = Encode::UTF8ToGBK(v.c_str()); }
+            j.set( k.c_str(), v);
+            break;
+        }
+        v_len = v_len - v_ptr;
+        fastring v = url_decode(path.data() + v_ptr, v_len);
+        if (isUTF8) {
+            v = Encode::UTF8ToGBK(v.c_str());
+        }
+        j.set( k.c_str(), v);
+        k_ptr = v_len + v_ptr + 1;
+    }
+    return j;
+}
+Json parse_form_urlencoded(fastring& body, bool isUTF8) {
+    Json   j;
+    size_t k_ptr, k_len, v_ptr, v_len;
+    auto   path = (fastring &&)body;
+    k_ptr = 0;
+    for (;;) {
+        k_len = path.find("=", k_ptr);
+        if (k_len == path.npos) {
+            break;
+        }
+        k_len      = k_len - k_ptr;
+        fastring k = url_decode(path.data() + k_ptr, k_len);
+        if (isUTF8) {
+            k = Encode::UTF8ToGBK(k.c_str());
+        }
+        v_ptr = k_len + k_ptr + 1;
+        v_len = path.find("&", v_ptr);
+        if (v_len == path.npos) {  //到达最后一个
+            v_len      = path.size() - v_ptr;
+            fastring v = url_decode(path.data() + v_ptr, v_len);
+            if (isUTF8) {
+                v = Encode::UTF8ToGBK(v.c_str());
+            }
+            j.set(k.c_str(), v);
+            break;
+        }
+        v_len      = v_len - v_ptr;
+        fastring v = url_decode(path.data() + v_ptr, v_len);
+        if (isUTF8) {
+            v = Encode::UTF8ToGBK(v.c_str());
+        }
+        j.set(k.c_str(), v);
+        k_ptr = v_len + v_ptr+1;
+    }
+    return j;
 }
 }  // namespace web

@@ -99,14 +99,22 @@ bool Server::on_header(REQ* req) {
 }
 
 bool Server::on_body(REQ* req) {
-    auto type = req->req.get("content-type").as_string().tolower();
+    Json query = parse_form_query(req->req, isUTF8);
+    req->req.set("query", query);
+
+    fastring type = req->req.get("content-type").as_string().tolower();
     if (type.find("application/json") != type.npos) {
         Json json;
-        if (isUTF8) { req->body_bin = Encode::GBKToUTF8(req->body_bin.c_str()); }
+        if (isUTF8) {
+            req->body_bin = Encode::GBKToUTF8(req->body_bin.c_str());
+        }
         json.parse_from(req->body_bin);
         req->req.set("body", json);
     } else if (type.find("multipart/form-data") != type.npos) {
         auto json = parse_form_data(req->body_bin, isUTF8);
+        req->req.set("body", json);
+    } else if (type.find("form-urlencoded") != type.npos) {
+        auto json = parse_form_urlencoded(req->body_bin, isUTF8);
         req->req.set("body", json);
     }
     WEBLOG << "on_bod£º" << req->req.pretty();
