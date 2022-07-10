@@ -33,9 +33,15 @@
     <ClCompile Include="src\Encodec.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\route.cc">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\coweb\ws.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\coweb\route.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

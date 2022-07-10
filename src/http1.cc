@@ -51,17 +51,20 @@ void REQ::send_msg(Json& body, int code, bool utf8) {
     }
     send(res.get());
 }
-void REQ::send_msg(fastring& body, int code, bool utf8) {
+void REQ::send_msg(const char * body, int code, bool utf8) {
     RES res;
     res.status = code;
     res.add_header("content-type", utf8 ? "text/html; charset=UTF-8" : "text/html");
     if (utf8) {
-        res.body = Encode::GBKToUTF8(body.c_str());
+        res.body = Encode::GBKToUTF8(body);
     } else {
         res.body = body;
     }
     send(res.get());
 }
+
+
+
 inline fastring& fastring_cache() {
     static __thread fastring* kS = 0;
     if (kS) return *kS;

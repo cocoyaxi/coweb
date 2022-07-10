@@ -26,7 +26,7 @@ class REQ {
     ~REQ();
     void set(tcp::Connection& conn) { conn_ = &conn; }
 
-    void send_msg(fastring msg, opcode code);
+    void send_msg(fastring msg, opcode code = ws::opcode::text);
 
    private:
     tcp::Connection* conn_ = 0;
@@ -38,6 +38,6 @@ class REQ {
 void          upgrade_to_websocket(Json& req, fastring& buf);
 ws_frame_type parse_payload(const char* buf, size_t size, ws_header& h, fastring& outbuf);
 int           parse_header(const char* buf, size_t size, ws_header& h);
-int           handle(tcp::Connection& conn, std::function<bool(ws::REQ*)> _on_wsbody);
+int           handle(tcp::Connection& conn,void * callback_vector, std::function<bool(ws::REQ*, void*)> _on_wsbody);
 fastring      encode_msg(fastring msg, opcode code = text);
 }  // namespace ws

@@ -159,10 +159,12 @@
     <ClCompile Include="include\picohttpparser\picohttpparser.c" />
     <ClCompile Include="src\Encodec.cpp" />
     <ClCompile Include="src\http1.cc" />
+    <ClCompile Include="src\route.cc" />
     <ClCompile Include="src\web.cc" />
     <ClCompile Include="src\ws.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\coweb\route.h" />
     <ClInclude Include="include\coweb\ws.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

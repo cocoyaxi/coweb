@@ -4,6 +4,7 @@
 #include "co/json.h"
 #include "co/tcp.h"
 #include "ws_define.h"
+
 namespace web {
 #define max_headers 100
 
@@ -13,10 +14,15 @@ class REQ {
     fastring ip;
     fastring err;
     Json     req;
+    void*    p_callback_vector=NULL;//callback向量
+    void*    p_wscalback_vector = NULL;//ws回调向量
     REQ();
     ~REQ();
     void set(tcp::Connection& conn) { conn_ = &conn; }
-    void send_msg(fastring& body, int code = 200, bool utf8 = true);
+    void send_msg(const char* body, int code = 200, bool utf8 = true);
+    void send_msg(fastring& body, int code, bool utf8) { 
+        send_msg(body.c_str(), code, utf8);
+    }
     void send_msg(Json& body, int code = 200, bool utf8 = true);
     void send(fastring msg);
 

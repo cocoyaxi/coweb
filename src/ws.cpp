@@ -47,7 +47,7 @@ void REQ::send_msg(fastring msg, opcode code) {
     sendbuf.append(buf);
     mtx.unlock();
 }
-void upgrade_to_websocket(Json& req, fastring& buf) {
+void upgrade_to_websocket(Json& req, fastring& buf ) {
     fastring header;
     uint8_t  sha1buf[20];
 
@@ -134,7 +134,7 @@ ws_frame_type parse_payload(const char* buf, size_t size, ws_header& h, fastring
     return ws_frame_type::WS_BINARY_FRAME;
 }
 
-int handle(tcp::Connection& conn, std::function<bool(ws::REQ*)> _on_wsbody) {
+int handle(tcp::Connection& conn, void* callback_vector, std::function<bool(ws::REQ*, void*)> _on_wsbody) {
     fastring buf(1024 * 100);
     int      r;
     ws::REQ  req;
@@ -154,7 +154,7 @@ int handle(tcp::Connection& conn, std::function<bool(ws::REQ*)> _on_wsbody) {
                     conn.close();
                     return -1;
                 }
-                _on_wsbody(&req);
+                _on_wsbody(&req, callback_vector);
             }
         } else {
             DLOG << "ws Òì³£¹Ø±Õ";
