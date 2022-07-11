@@ -17,7 +17,7 @@ bool fn1(web::REQ*req) {
 bool fn2(web::REQ*req) {
     DLOG << "fn2 "
          << "检查不通过";
-    req->send_msg("404", 404);
+    req->send_msg("<p>一段文本<\p>", 200);
     return false;
 }
 bool fn3(web::REQ*req) {
@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     flag::init(argc, argv);
     FLG_cout = true;
     web::Server w;
-    w.route.reg("/a/b", {"GET", "POST"}, {fn1, fn2,fn3});
+    w.route.reg("/", {"GET", "POST"}, {fn1, fn2,fn3});
     w.hook_before_req(before_req);
     w.hook_weberr(weberr);
     w.hook_on_connected(connected);

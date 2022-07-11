@@ -2,7 +2,7 @@
 
 #include "def.h"
 #include <functional>
-
+#include "co/log.h"
 namespace tcp {
 
 /**
@@ -22,7 +22,10 @@ struct __coapi Connection final {
     Connection(Connection&& c) : _p(c._p) { c._p = 0; }
 
     // close the connection in destructor
-    ~Connection() { this->close(); }
+    ~Connection() {
+        ELOG << "~Connection:"<<this;
+        this->close();
+    }
 
     // get the underlying socket fd
     int socket() const;

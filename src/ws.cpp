@@ -1,4 +1,4 @@
-#include "coweb/ws.h"
+﻿#include "coweb/ws.h"
 #include "coweb/sha1.hpp"
 #include "coweb/web.h"
 
@@ -10,35 +10,11 @@ void SHA1(fastring& key_src, uint8_t* sha1buf) {
     web::finish(ctx, sha1buf);
 }
 REQ::REQ() {
-    auto pbuf  = &sendbuf;
-    auto pmtx  = &mtx;
-    auto pexit = &exit;
-    go([=]() {
-        fastring buf;
-        while (*pexit == 1) {
-            pmtx->lock();
-            buf = *pbuf;
-            pbuf->resize(0);
-            pmtx->unlock();
 
-            if (buf.size() > 0) {
-                auto r = conn_->send(buf.data(), buf.size());
-                if (r <= 0) {
-                    DLOG << "ws_send err!";
-                    *pexit = -1;  // exit co send
-                }
-            }
-            co::sleep(1);
-        }
-        *pexit = -1;  // exit co send
-    });
 }
 
 REQ::~REQ() {
-    if (exit == 1) {
-        exit = 0;
-        while (exit == 0) { co::sleep(10); }
-    }
+
 }
 
 void REQ::send_msg(fastring msg, opcode code) {
@@ -151,13 +127,13 @@ int handle(tcp::Connection& conn, void* callback_vector, std::function<bool(ws::
                 req.body      = (fastring &&) outbuf;
                 req.code_     = code;
                 if (code == ws_frame_type::WS_CLOSE_FRAME) {
-                    conn.close();
+                   
                     return -1;
                 }
                 _on_wsbody(&req, callback_vector);
             }
         } else {
-            DLOG << "ws �쳣�ر�";
+            DLOG << "ws 异常关闭";
             conn.close();
             return -1;
         }

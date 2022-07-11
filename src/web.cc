@@ -1,4 +1,4 @@
-#include "./http.h"
+Ôªø#include "./http.h"
 #include "co/http.h"
 #include "co/tcp.h"
 #include "co/co.h"
@@ -97,7 +97,7 @@ Server::~Server() {
 
 bool Server::on_connect(REQ* req) {
 
-    WEBLOG << "on_connect£∫" << req->ip;
+    WEBLOG << "on_connectÔºö" << req->ip;
     if (connected) {
         if (connected(req) == false) return false;
     }
@@ -112,7 +112,7 @@ bool Server::on_header(REQ* req) {
     auto     fn_size = fn.size();
     if (fn_size<=0)
     {
-        fn = route.get_pcre(path, method);  //’˝‘Ú¬∑”…
+        fn = route.get_pcre(path, method);  //Ê≠£ÂàôË∑ØÁî±
     }
     if (fn_size <= 0) {
         return false;
@@ -120,7 +120,7 @@ bool Server::on_header(REQ* req) {
         req->p_callback_vector = new co::vector<rut_callback>(fn);
     }
 
-    WEBLOG << "on_header£∫" << req->req.pretty();
+    WEBLOG << "on_headerÔºö" << req->req.pretty();
     return true;
 }
 
@@ -156,8 +156,8 @@ bool Server::on_body(REQ* req) {
         req->req.set("body", json);
     }
     
-    WEBLOG << "on_bod£∫" << req->req.pretty();
-    //«Î«Û«∞¥¶¿Ìhook
+    WEBLOG << "on_bodÔºö" << req->req.pretty();
+    //ËØ∑Ê±ÇÂâçÂ§ÑÁêÜhook
     if (before_req) {
         if (before_req(req)==false)
         {
@@ -173,7 +173,7 @@ bool Server::on_body(REQ* req) {
     return true;
 }
 bool Server::on_close(REQ* req) {
-    WEBLOG << "on_close£∫" << req->ip;
+    WEBLOG << "on_closeÔºö" << req->ip;
     if (req->p_callback_vector != NULL) {
         delete (co::vector<rut_callback>*)(req->p_callback_vector);
         req->p_callback_vector = NULL;
@@ -188,12 +188,12 @@ bool Server::on_close(REQ* req) {
     return true;
 }
 bool Server::on_err(REQ* req) {
-    WEBLOG << "on_err£∫" << req->err;
+    WEBLOG << "on_errÔºö" << req->err;
     if (weberr) weberr(req);
     return true;
 }
 bool Server::on_wsupgrade(REQ* req) {
-    WEBLOG << "on_wsupgrade£∫" << req->ip;
+    WEBLOG << "on_wsupgradeÔºö" << req->ip;
     fastring path    = req->req.get("path").as_string();
     auto     method  = req->req.get("method").as_c_str();
     auto     fn      = route.get_ws(path, method);
@@ -246,17 +246,53 @@ inline int hex2int(char c) {
 
 void send_error_message(int err, Json* res, void* conn) {}
 
+void web_send_co(REQ *preq) {
+        while (preq->exit == false) {
+            fastring buf;
+            preq->mtx.lock();
+            if (preq->sendbuf.size()>0)
+            {
+                std::swap(buf, preq->sendbuf);
+            }
+            preq->mtx.unlock();
+
+            if (buf.size() > 0) {
+                if (preq->conn_ != 0 && ((int*)preq->conn_)[0] != 0) {
+                    try {
+                        ELOG << "web_send_co this:" << preq << "conn:" << preq->conn_; 
+                        auto r = preq->conn_->send(buf.data(), buf.size());
+                        if (r <= 0) {
+                            DLOG << "web_send err!";
+                          //  return;  // exit co send
+                        }
+                    } catch (...) {
+                          // exit co send
+                        //return;
+                    }
+                }
+            }
+            co::sleep(1);
+        }
+        preq->exit = false;
+       
+   
+}
+
 void ServerImpl::on_connection(tcp::Connection conn) {
     char     c;
     int      r   = 0;
     size_t   pos = 0;
     fastring buf;
     Json     res;
-    REQ      req;
-    bool     keep_alive = false, isupgade = false;
-    req.ip = co::peer(conn.socket());  // get ip
-    req.set(conn);
-    if (_on_connect(&req) == false) goto closed;
+    // REQ      req;
+   auto            req        = new REQ;
+    //std::shared_ptr<REQ> req(new REQ);
+        bool keep_alive = false, isupgade = false;
+    req->ip = co::peer(conn.socket());  // get ip
+    req->set(conn);
+    ELOG << " go(web_send_co, req); this:" << req << "conn:" << req->conn_; 
+    go(web_send_co, req);
+    if (_on_connect(req) == false) goto closed;
     god::bless_no_bugs();
     while (true) {
         { /* recv http header and body */
@@ -279,7 +315,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             }
             while (true) {
                 if (buf.size() > FLG_web_max_header_size) goto header_too_long_err;
-                if (buf.capacity() - buf.size() < 4096)  // £”‡ø’º‰≤ª◊„4k
+                if (buf.capacity() - buf.size() < 4096)  //Ââ©‰ΩôÁ©∫Èó¥‰∏çË∂≥4k
                     buf.reserve(buf.size() + 4096);
                 r = conn.recv((void*)(buf.data() + buf.size()), (int)(buf.capacity() - buf.size()), keep_alive ? -1 : FLG_web_recv_timeout);
                 if (r == 0) goto recv_zero_err;
@@ -293,34 +329,34 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                     goto recv_err;
                 }
                 buf.resize(buf.size() + r);
-                int reqlen = parse_web_headers(&buf, &req.req);
+                int reqlen = parse_web_headers(&buf, &req->req);
                 if (reqlen > 0) {
-                   bool route_ok= _on_header(&req);  //«Î«ÛÕ∑Ω‚ŒˆÕÍ≥…
-                    fastring Connection = req.req.get("connection").as_string();
+                    bool     route_ok   = _on_header(req);  //ËØ∑Ê±ÇÂ§¥Ëß£ÊûêÂÆåÊàê
+                    fastring Connection = req->req.get("connection").as_string();
                     Connection.tolower();
                     if (Connection.size() == 10 && Connection.starts_with('k'))  // keep-alive
                     {
                         keep_alive = true;
-                        WEBLOG << "µ±«∞Œ™≥§¡¨Ω”";
-                    } 
+                        WEBLOG << "ÂΩìÂâç‰∏∫ÈïøËøûÊé•";
+                    }
                     isupgade = (Connection.size() == 7 && Connection.starts_with('u'));  // upgrade
-                    //¬∑”… ß∞‹
+                    //Ë∑ØÁî±Â§±Ë¥•
                     if (!route_ok && !isupgade && !keep_alive) goto closed;
                     if (!route_ok && keep_alive) {
-                        req.send_msg("route err", 404, false);
+                        req->send_msg("route err", 404, false);
                     }
-                    int body_len = req.req.get("content-length").as_int();
+                    int body_len = req->req.get("content-length").as_int();
                     while (body_len > 0) {
                         if ((buf.size() - reqlen) >= body_len) {
                             fastring body;
                             body.append(buf.data() + reqlen, body_len);
-                            req.body_bin = (fastring &&) body;
+                            req->body_bin = (fastring &&) body;
                             break;
-                            // WEBLOG << "bodyΩ” ’ÕÍ≥…";
+                            // WEBLOG << "bodyÊé•Êî∂ÂÆåÊàê";
                         }
                         auto p   = buf.data() + buf.size();
                         auto sub = reqlen + body_len - buf.size();
-                        if (buf.capacity() - buf.size() < sub)  //ø’º‰≤ª◊„
+                        if (buf.capacity() - buf.size() < sub)  //Á©∫Èó¥‰∏çË∂≥
                             buf.reserve(buf.size() + sub);
                         r = conn.recv((void*)(p), (int)(sub), keep_alive ? -1 : FLG_web_recv_timeout);
                         if (r == 0) goto recv_zero_err;
@@ -335,10 +371,10 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                         }
                         buf.resize(buf.size() + r);
                     }
-                    //∑÷øÈ
+                    //ÂàÜÂùó
                     {
-                        bool                       ischunk = req.req.has_member("transfer-encoding");  //∑÷øÈ
-                        struct phr_chunked_decoder decoder = {};                                       /* zero-clear */
+                        bool                       ischunk = req->req.has_member("transfer-encoding");  //ÂàÜÂùó
+                        struct phr_chunked_decoder decoder = {};                                         /* zero-clear */
                         size_t                     size    = reqlen, rsize;
                         decoder.consume_trailer            = 1;
                         while (ischunk) {
@@ -350,11 +386,11 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                             if (pret >= 0) {
                                 fastring body;
                                 body.append(buf.data() + reqlen, buf.size() - reqlen);
-                                req.body_bin = (fastring &&) body;
-                                WEBLOG << "chunkΩ” ’ÕÍ≥…";
+                                req->body_bin = (fastring &&) body;
+                                WEBLOG << "chunkÊé•Êî∂ÂÆåÊàê";
                                 break;
                             }
-                            //ºÃ–¯Ω” ’
+                            //ÁªßÁª≠Êé•Êî∂
                             buf.reserve(buf.size() + 4096);
                             r = conn.recv((void*)(buf.data() + buf.size()), (int)(buf.capacity() - buf.size()), FLG_web_recv_timeout);
                             if (r == 0) goto recv_zero_err;
@@ -370,18 +406,18 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                             buf.resize(buf.size() + r);
                         }
                     }
-                    // websocketªÚ≥§¡¨Ω”
+                    // websocketÊàñÈïøËøûÊé•
                     {
                         if (isupgade) {
-                            fastring Upgrade = req.req.get("upgrade").as_string();
+                            fastring Upgrade = req->req.get("upgrade").as_string();
                             if (Upgrade.starts_with('w') || Upgrade.starts_with('W')) {
-                                WEBLOG << "ws…˝º∂ ¬º˛";
-                                if (_on_wsupgrade(&req) == false) goto closed;
+                                WEBLOG << "wsÂçáÁ∫ß‰∫ã‰ª∂";
+                                if (_on_wsupgrade(req) == false) goto closed;
                                 fastring sendbuf;
-                                ws::upgrade_to_websocket(req.req, sendbuf);
-                                conn.send(sendbuf.data(), sendbuf.size());  //œÏ”¶…˝º∂
+                                ws::upgrade_to_websocket(req->req, sendbuf);
+                                conn.send(sendbuf.data(), sendbuf.size());  //ÂìçÂ∫îÂçáÁ∫ß
                                 buf.reserve(0);
-                                switch (ws::handle(conn,req.p_wscalback_vector, _on_wsbody)) {
+                                switch (ws::handle(conn, req->p_wscalback_vector, _on_wsbody)) {
                                     default: break;
                                     case -1: goto closed;
                                 };
@@ -389,15 +425,15 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                         }
                     }
                     if (route_ok) {
-                        _on_body(&req);
+                        _on_body(req);
                     }
-                    
+
                     buf.resize(0);
-                    req.body_bin.clear();
-                    req.req.reset();
-                    req.err.clear();
+                    req->body_bin.clear();
+                    req->req.reset();
+                    req->err.clear();
                     if (!keep_alive) {
-                        co::sleep(60000);  //µ»¥˝60√ÎœÏ”¶ ˝æ›
+                        co::sleep(60000);  //Á≠âÂæÖ60ÁßíÂìçÂ∫îÊï∞ÊçÆ
                         goto closed;
                     }
                 } else if (reqlen == -1) {
@@ -408,34 +444,43 @@ void ServerImpl::on_connection(tcp::Connection conn) {
     }
 
 recv_zero_err:
-    req.err << "http client close the connection: " << co::peer(conn.socket());
+    req->err << "http client close the connection: " << co::peer(conn.socket());
     goto end;
 idle_err:
-    req.err << "http close idle ";
-    _on_err(&req);
-    conn.reset();
+    req->err << "http close idle ";
+    _on_err(req);
+    req->exit = true;
+    conn.reset(15000);
     goto end;
 header_too_long_err:
-    req.err = "http recv error: header too long";
-    _on_err(&req);
+    req->err = "http recv error: header too long";
+    _on_err(req);
     goto reset_conn;
 recv_err:
-    req.err = "http recv error ";
-    _on_err(&req);
+    req->err = "http recv error ";
+    _on_err(req);
     goto reset_conn;
 chunk_err:
-    req.err = "http invalid chunked data..";
-    _on_err(&req);
+    req->err = "http invalid chunked data..";
+    _on_err(req);
     goto reset_conn;
 reset_conn:
-    conn.reset(3000);
+    req->exit = true;
+    conn.reset(15000);
     goto end;
 closed:
-    conn.reset(3000);
+    req->exit = true;
+    conn.reset(15000);
     goto end;
 end:
-    _on_close(&req);
+    req->exit = true;
+    
+    _on_close(req);
     god::bless_no_bugs();
+    while (req->exit ) {
+        co::sleep(10);
+    }
+    delete req;
 }
 }  // namespace web
 

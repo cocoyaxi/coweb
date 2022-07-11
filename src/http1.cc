@@ -1,39 +1,13 @@
-#include "coweb/http1.h"
+ï»¿#include "coweb/http1.h"
 #include "co/co.h"
 #include "coweb/Encodec.h"
 #include "co/hash.h"
 #include "picohttpparser/picohttpparser.h"
 namespace web {
 REQ::REQ() {
-    auto pbuf  = &sendbuf;
-    auto pmtx  = &mtx;
-    auto pexit = &exit;
-    go([=]() {
-        fastring buf;
-        while (*pexit == 1) {
-            pmtx->lock();
-            buf = *pbuf;
-            pbuf->resize(0);
-            pmtx->unlock();
 
-            if (buf.size() > 0) {
-                auto r = conn_->send(buf.data(), buf.size());
-                if (r <= 0) {
-                    DLOG << "web_send err!";
-                    *pexit = -1;  // exit co send
-                }
-            }
-            co::sleep(1);
-        }
-        *pexit = -1;  // exit co send
-    });
 }
-REQ::~REQ() {
-    if (exit == 1) {
-        exit = 0;
-        while (exit == 0) { co::sleep(10); }
-    }
-}
+REQ::~REQ() { ELOG << "~req this:" << this << "conn:" << conn_; }
 void REQ::send(fastring msg) {
     mtx.lock();
     sendbuf.append((fastring&)msg);
@@ -242,7 +216,7 @@ Json parse_form_query(Json& body,bool isUTF8) {
         }
         v_ptr     = k_len + k_ptr+1;
         v_len      = path.find("&", v_ptr);       
-        if (v_len == path.npos) {  //µ½´ï×îºóÒ»¸ö
+        if (v_len == path.npos) {  //åˆ°è¾¾æœ€åŽä¸€ä¸ª
             v_len=path.size()-v_ptr;
             fastring v = url_decode(path.data() + v_ptr, v_len);
             if (isUTF8) { v = Encode::UTF8ToGBK(v.c_str()); }
@@ -276,7 +250,7 @@ Json parse_form_urlencoded(fastring& body, bool isUTF8) {
         }
         v_ptr = k_len + k_ptr + 1;
         v_len = path.find("&", v_ptr);
-        if (v_len == path.npos) {  //µ½´ï×îºóÒ»¸ö
+        if (v_len == path.npos) {  //åˆ°è¾¾æœ€åŽä¸€ä¸ª
             v_len      = path.size() - v_ptr;
             fastring v = url_decode(path.data() + v_ptr, v_len);
             if (isUTF8) {

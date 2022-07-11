@@ -10,7 +10,12 @@ namespace web {
 
 class REQ {
    public:
+    fastring   sendbuf;
+    std::mutex mtx;
     fastring body_bin;
+    std::atomic_bool exit = false;
+    tcp::Connection* conn_ = 0;
+
     fastring ip;
     fastring err;
     Json     req;
@@ -27,10 +32,9 @@ class REQ {
     void send(fastring msg);
 
    private:
-    tcp::Connection* conn_ = 0;
-    fastring         sendbuf;
-    std::mutex       mtx;
-    char             exit = 1;
+    
+    
+    
     //		REQ(tcp::Connection* _conn_, fastring _sendbuf, std::mutex _mtx)
     //: conn_(_conn_),sendbuf(_sendbuf),mtx(_mtx)
     //{}
