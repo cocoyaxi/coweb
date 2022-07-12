@@ -259,7 +259,8 @@ void web_send_co(REQ *preq) {
             if (buf.size() > 0) {
                 if (preq->conn_ != 0 && ((int*)preq->conn_)[0] != 0) {
                     try {
-                        ELOG << "web_send_co this:" << preq << "conn:" << preq->conn_; 
+                        ELOG << "web_send_co this:" << preq << " conn[0]:" << ((int*)preq->conn_)[0] << " conn:" << preq->conn_;
+                        
                         auto r = preq->conn_->send(buf.data(), buf.size());
                         if (r <= 0) {
                             DLOG << "web_send err!";
@@ -269,6 +270,8 @@ void web_send_co(REQ *preq) {
                           // exit co send
                         //return;
                     }
+                } else {
+                    FLOG << "ERR CONN NULL" << ((int*)preq->conn_)[0] << "web_send_co this:" << preq;
                 }
             }
             co::sleep(1);
@@ -290,7 +293,8 @@ void ServerImpl::on_connection(tcp::Connection conn) {
         bool keep_alive = false, isupgade = false;
     req->ip = co::peer(conn.socket());  // get ip
     req->set(conn);
-    ELOG << " go(web_send_co, req); this:" << req << "conn:" << req->conn_; 
+    ELOG << " go(web_send_co, req); this:" << req << " conn[0]:" << ((int*)req->conn_)[0] << " conn:" << req->conn_;
+    
     go(web_send_co, req);
     if (_on_connect(req) == false) goto closed;
     god::bless_no_bugs();
@@ -304,7 +308,6 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                 if (r < 0) {
                     if (!co::timeout()) goto recv_err;
                     if (_stopped) {
-                        conn.reset();
                         goto end;
                     }  // server stopped
                     if (_serv.conn_num() > FLG_web_max_idle_conn) goto idle_err;
@@ -442,15 +445,12 @@ void ServerImpl::on_connection(tcp::Connection conn) {
             }
         };
     }
-
 recv_zero_err:
     req->err << "http client close the connection: " << co::peer(conn.socket());
     goto end;
 idle_err:
     req->err << "http close idle ";
     _on_err(req);
-    req->exit = true;
-    conn.reset(15000);
     goto end;
 header_too_long_err:
     req->err = "http recv error: header too long";
@@ -465,21 +465,20 @@ chunk_err:
     _on_err(req);
     goto reset_conn;
 reset_conn:
-    req->exit = true;
-    conn.reset(15000);
+    
     goto end;
 closed:
-    req->exit = true;
-    conn.reset(15000);
+
     goto end;
 end:
     req->exit = true;
-    
     _on_close(req);
     god::bless_no_bugs();
     while (req->exit ) {
         co::sleep(10);
     }
+    conn.reset(100);
+    ELOG << " delete req; this:" << req << " conn[0]:" << ((int*)req->conn_)[0] << " conn:" << req->conn_; 
     delete req;
 }
 }  // namespace web

@@ -134,7 +134,6 @@ int handle(tcp::Connection& conn, void* callback_vector, std::function<bool(ws::
             }
         } else {
             DLOG << "ws 异常关闭";
-            conn.close();
             return -1;
         }
     }
