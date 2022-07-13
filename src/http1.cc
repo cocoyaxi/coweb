@@ -7,7 +7,9 @@ namespace web {
 REQ::REQ() {
 
 }
-REQ::~REQ() { ELOG << "~req this:" << this << "conn:" << conn_; }
+REQ::~REQ() {
+    
+    }
 void REQ::send(fastring msg) {
     mtx.lock();
     sendbuf.append((fastring&)msg);
@@ -116,37 +118,42 @@ fastring RES::get(void) {
     return buf;
 };
 
-int parse_web_headers(fastring* buf, Json* req) {
-    fastring          s(1024), name(256);
+int parse_web_headers(fastring* buf, Json* preq) {
+    
+    Json              req;
     char *            method, *path;
     int               pret, minor_version;
     struct phr_header headers[max_headers];
     size_t            buflen = 0, prevbuflen = 0, method_len, path_len, num_headers = max_headers;
-
-    pret = phr_parse_request(buf->c_str(), buf->size(), (const char**)&method, &method_len, (const char**)&path, &path_len, &minor_version, headers,
+    buflen=buf->size();
+    pret   = phr_parse_request(buf->c_str(), buflen, (const char**)&method, &method_len, (const char**)&path, &path_len, &minor_version, headers,
                              &num_headers, prevbuflen);
+    
     if (pret == -1) return -1;
     /* request is incomplete, continue the loop */
     assert(pret == -2);
-    if (buflen == sizeof(buf)) return -2;
+ 
     if (pret > 0) {
-        s.append(method, method_len);
-        req->add_member("method", s);
-
-        s.clear();
-        s.append(path, path_len);
-        req->add_member("path", s);
-
-        req->add_member("version", (minor_version != 0) ? "HTTP/1.1" : "HTTP/1.0");  // http1.0/1.1
+        
+        //return 0;
+            fastring m;
+            m.append(method, method_len);
+            req.add_member("method", m);
+            fastring p;
+            p.append(path, path_len);
+            req.add_member("path", p);
+            req.add_member("version", (minor_version != 0) ? "HTTP/1.1" : "HTTP/1.0");  // http1.0/1.1
+ 
         for (size_t i = 0; i < num_headers; i++) {
-            name.clear();
-            s.clear();
+            fastring name;
+            fastring s ;
 
             name.append(headers[i].name, headers[i].name_len);
             name.tolower();
             s.append(headers[i].value, headers[i].value_len);
-            req->add_member(name.c_str(), s);
+            req.add_member(name.c_str(), s);
         }
+        preq->swap(req);
         return pret; /* successfully parsed the request */
     }
 

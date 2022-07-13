@@ -14,7 +14,9 @@ class REQ {
     std::mutex mtx;
     fastring body_bin;
     std::atomic_bool exit = false;
-    tcp::Connection* conn_ = 0;
+    std::atomic_int  count = 0;
+    
+    int socket = 0;
 
     fastring ip;
     fastring err;
@@ -23,7 +25,7 @@ class REQ {
     void*    p_wscalback_vector = NULL;//ws回调向量
     REQ();
     ~REQ();
-    void set(tcp::Connection& conn) { conn_ = &conn; }
+   // void set(tcp::Connection& conn) { conn_ = &conn; }
     void send_msg(const char* body, int code = 200, bool utf8 = true);
     void send_msg(fastring& body, int code, bool utf8) { 
         send_msg(body.c_str(), code, utf8);

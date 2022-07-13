@@ -23,7 +23,6 @@ struct __coapi Connection final {
 
     // close the connection in destructor
     ~Connection() {
-        ELOG << "~Connection this:" << this << "conn" << (int*)&this[0];
         this->close();
     }
 

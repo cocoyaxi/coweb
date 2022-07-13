@@ -96,7 +96,7 @@ Server::~Server() {
 }
 
 bool Server::on_connect(REQ* req) {
-
+    
     WEBLOG << "on_connect：" << req->ip;
     if (connected) {
         if (connected(req) == false) return false;
@@ -105,7 +105,7 @@ bool Server::on_connect(REQ* req) {
     return true;
 }
 bool Server::on_header(REQ* req) {
-
+    
     fastring path    = req->req.get("path").as_string();
     auto     method  = req->req.get("method").as_c_str();
     auto     fn      = route.get(path, method);
@@ -125,8 +125,8 @@ bool Server::on_header(REQ* req) {
 }
 
 bool Server::on_body(REQ* req) {
-
-    if (req->p_callback_vector==NULL)
+    
+    if (req->p_callback_vector == NULL)
     {
         return false;
     }
@@ -135,28 +135,32 @@ bool Server::on_body(REQ* req) {
     req->p_callback_vector      = NULL;
     auto                     fn_size = fn.size() ;
     if (fn_size <= 0) return false;
-
+    
 
     Json query = parse_form_query(req->req, isUTF8);
-    req->req.set("query", query);
+    
+    Json json;
+    req->req.swap(json);
+    json.set("query", query);
 
-    fastring type = req->req.get("content-type").as_string().tolower();
+    fastring type = json.get("content-type").as_string().tolower();
     if (type.find("application/json") != type.npos) {
         Json json;
         if (isUTF8) {
             req->body_bin = Encode::GBKToUTF8(req->body_bin.c_str());
         }
         json.parse_from(req->body_bin);
-        req->req.set("body", json);
+        json.set("body", json);
     } else if (type.find("multipart/form-data") != type.npos) {
         auto json = parse_form_data(req->body_bin, isUTF8);
-        req->req.set("body", json);
+       json.set("body", json);
     } else if (type.find("form-urlencoded") != type.npos) {
         auto json = parse_form_urlencoded(req->body_bin, isUTF8);
-        req->req.set("body", json);
+        json.set("body", json);
     }
     
-    WEBLOG << "on_bod：" << req->req.pretty();
+    WEBLOG << "on_bod：" << json.pretty();
+    req->req.swap(json);
     //请求前处理hook
     if (before_req) {
         if (before_req(req)==false)
@@ -173,6 +177,7 @@ bool Server::on_body(REQ* req) {
     return true;
 }
 bool Server::on_close(REQ* req) {
+   
     WEBLOG << "on_close：" << req->ip;
     if (req->p_callback_vector != NULL) {
         delete (co::vector<rut_callback>*)(req->p_callback_vector);
@@ -246,39 +251,43 @@ inline int hex2int(char c) {
 
 void send_error_message(int err, Json* res, void* conn) {}
 
-void web_send_co(REQ *preq) {
-        while (preq->exit == false) {
-            fastring buf;
-            preq->mtx.lock();
-            if (preq->sendbuf.size()>0)
-            {
-                std::swap(buf, preq->sendbuf);
-            }
-            preq->mtx.unlock();
-
-            if (buf.size() > 0) {
-                if (preq->conn_ != 0 && ((int*)preq->conn_)[0] != 0) {
-                    try {
-                        ELOG << "web_send_co this:" << preq << " conn[0]:" << ((int*)preq->conn_)[0] << " conn:" << preq->conn_;
-                        
-                        auto r = preq->conn_->send(buf.data(), buf.size());
-                        if (r <= 0) {
-                            DLOG << "web_send err!";
-                          //  return;  // exit co send
-                        }
-                    } catch (...) {
-                          // exit co send
-                        //return;
-                    }
-                } else {
-                    FLOG << "ERR CONN NULL" << ((int*)preq->conn_)[0] << "web_send_co this:" << preq;
-                }
-            }
-            co::sleep(1);
+void web_send_co(REQ* preq) {
+    
+    if (preq->count>0)
+    {
+        FLOG << "req count>0 this" << preq << " count "<<preq->count;
+    }
+    preq->count++;
+    while (preq->exit == false) {
+        fastring buf;
+        preq->mtx.lock();
+        if (preq->sendbuf.size() > 0) {
+            std::swap(buf, preq->sendbuf);
         }
-        preq->exit = false;
-       
-   
+        preq->mtx.unlock();
+        
+        if (buf.size() > 0) {
+            if (preq->socket != 0) {  // && ((int*)preq->conn_)[0] != 0
+                try {
+                    auto r = co::send(preq->socket, buf.data(), buf.size());
+                    if (r <= 0) {
+                        DLOG << "web_send err!";
+                        //  return;  // exit co send
+                    }
+                } catch (...) {
+                    // exit co send
+                    FLOG << "catch ERR CONN NULL"
+                         << " web_send_co this:" << preq;
+                }
+            } else {
+                FLOG << "ERR CONN NULL"
+                     << " web_send_co this:" << preq;
+            }
+        }
+        co::sleep(1);
+    }
+    preq->count--;
+    return;
 }
 
 void ServerImpl::on_connection(tcp::Connection conn) {
@@ -291,11 +300,10 @@ void ServerImpl::on_connection(tcp::Connection conn) {
    auto            req        = new REQ;
     //std::shared_ptr<REQ> req(new REQ);
         bool keep_alive = false, isupgade = false;
-    req->ip = co::peer(conn.socket());  // get ip
-    req->set(conn);
-    ELOG << " go(web_send_co, req); this:" << req << " conn[0]:" << ((int*)req->conn_)[0] << " conn:" << req->conn_;
-    
-    go(web_send_co, req);
+   req->socket = conn.socket();
+   req->ip     = co::peer(req->socket);  // get ip
+        
+ 
     if (_on_connect(req) == false) goto closed;
     god::bless_no_bugs();
     while (true) {
@@ -313,6 +321,7 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                     if (_serv.conn_num() > FLG_web_max_idle_conn) goto idle_err;
                     goto recv_beg;
                 }
+                go(web_send_co, req);
                 buf.reserve(4096);
                 buf.append(c);
             }
@@ -411,21 +420,21 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                     }
                     // websocket或长连接
                     {
-                        if (isupgade) {
-                            fastring Upgrade = req->req.get("upgrade").as_string();
-                            if (Upgrade.starts_with('w') || Upgrade.starts_with('W')) {
-                                WEBLOG << "ws升级事件";
-                                if (_on_wsupgrade(req) == false) goto closed;
-                                fastring sendbuf;
-                                ws::upgrade_to_websocket(req->req, sendbuf);
-                                conn.send(sendbuf.data(), sendbuf.size());  //响应升级
-                                buf.reserve(0);
-                                switch (ws::handle(conn, req->p_wscalback_vector, _on_wsbody)) {
-                                    default: break;
-                                    case -1: goto closed;
-                                };
-                            }
-                        }
+                        //if (isupgade) {
+                        //    fastring Upgrade = req->req.get("upgrade").as_string();
+                        //    if (Upgrade.starts_with('w') || Upgrade.starts_with('W')) {
+                        //        WEBLOG << "ws升级事件";
+                        //        if (_on_wsupgrade(req) == false) goto closed;
+                        //        fastring sendbuf;
+                        //        ws::upgrade_to_websocket(req->req, sendbuf);
+                        //        conn.send(sendbuf.data(), sendbuf.size());  //响应升级
+                        //        buf.reserve(0);
+                        //        switch (ws::handle(conn, req->p_wscalback_vector, _on_wsbody)) {
+                        //            default: break;
+                        //            case -1: goto closed;
+                        //        };
+                        //    }
+                        //}
                     }
                     if (route_ok) {
                         _on_body(req);
@@ -474,11 +483,12 @@ end:
     req->exit = true;
     _on_close(req);
     god::bless_no_bugs();
-    while (req->exit ) {
-        co::sleep(10);
+    while (req->count>0 ) {
+        co::sleep(1);
     }
+   
     conn.reset(100);
-    ELOG << " delete req; this:" << req << " conn[0]:" << ((int*)req->conn_)[0] << " conn:" << req->conn_; 
+   
     delete req;
 }
 }  // namespace web
