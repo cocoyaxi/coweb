@@ -141,7 +141,11 @@ bool Server::on_body(REQ* req) {
     
     Json json;
     req->req.swap(json);
-    json.set("query", query);
+    if (query.size()>0)
+    {
+        json.set("query", query);
+    }
+    
 
     fastring type = json.get("content-type").as_string().tolower();
     if (type.find("application/json") != type.npos) {
@@ -155,8 +159,8 @@ bool Server::on_body(REQ* req) {
         auto json = parse_form_data(req->body_bin, isUTF8);
        json.set("body", json);
     } else if (type.find("form-urlencoded") != type.npos) {
-        auto json = parse_form_urlencoded(req->body_bin, isUTF8);
-        json.set("body", json);
+        auto j = parse_form_urlencoded(req->body_bin, isUTF8);
+        json.set("body", j);
     }
     
     WEBLOG << "on_bod：" << json.pretty();

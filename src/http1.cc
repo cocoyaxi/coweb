@@ -143,16 +143,17 @@ int parse_web_headers(fastring* buf, Json* preq) {
             p.append(path, path_len);
             req.add_member("path", p);
             req.add_member("version", (minor_version != 0) ? "HTTP/1.1" : "HTTP/1.0");  // http1.0/1.1
- 
+            Json h;
         for (size_t i = 0; i < num_headers; i++) {
             fastring name;
             fastring s ;
-
             name.append(headers[i].name, headers[i].name_len);
             name.tolower();
             s.append(headers[i].value, headers[i].value_len);
             req.add_member(name.c_str(), s);
+            h.push_back(name);
         }
+        req.add_member("headers", h);
         preq->swap(req);
         return pret; /* successfully parsed the request */
     }
