@@ -9,19 +9,13 @@ void SHA1(fastring& key_src, uint8_t* sha1buf) {
     web::update(ctx, key_src.data(), key_src.size());
     web::finish(ctx, sha1buf);
 }
-REQ::REQ() {
 
-}
 
-REQ::~REQ() {
 
-}
 
 void REQ::send_msg(fastring msg, opcode code) {
     fastring buf = encode_msg(msg, code);
-    mtx.lock();
-    sendbuf.append(buf);
-    mtx.unlock();
+    _p->send(buf);
 }
 void upgrade_to_websocket(Json& req, fastring& buf ) {
     fastring header;
@@ -110,11 +104,11 @@ ws_frame_type parse_payload(const char* buf, size_t size, ws_header& h, fastring
     return ws_frame_type::WS_BINARY_FRAME;
 }
 
-int handle(tcp::Connection& conn, void* callback_vector, std::function<bool(ws::REQ*, void*)> _on_wsbody) {
+int handle(web::REQ* p, tcp::Connection& conn, void* callback_vector, std::function<bool(ws::REQ*, void*)> _on_wsbody) {
     fastring buf(1024 * 100);
     int      r;
-    ws::REQ  req;
-    req.set(conn);
+    ws::REQ  req(p);
+   
     while (true) {
         buf.resize(0);
         r = conn.recv((void*)(buf.data()), (int)(buf.capacity()), -1);
@@ -137,7 +131,7 @@ int handle(tcp::Connection& conn, void* callback_vector, std::function<bool(ws::
             return -1;
         }
     }
-    return 0;
+    return -1;
 }
 
 fastring encode_msg(fastring msg, opcode code) {

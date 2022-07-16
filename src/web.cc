@@ -424,21 +424,21 @@ void ServerImpl::on_connection(tcp::Connection conn) {
                     }
                     // websocket或长连接
                     {
-                        //if (isupgade) {
-                        //    fastring Upgrade = req->req.get("upgrade").as_string();
-                        //    if (Upgrade.starts_with('w') || Upgrade.starts_with('W')) {
-                        //        WEBLOG << "ws升级事件";
-                        //        if (_on_wsupgrade(req) == false) goto closed;
-                        //        fastring sendbuf;
-                        //        ws::upgrade_to_websocket(req->req, sendbuf);
-                        //        conn.send(sendbuf.data(), sendbuf.size());  //响应升级
-                        //        buf.reserve(0);
-                        //        switch (ws::handle(conn, req->p_wscalback_vector, _on_wsbody)) {
-                        //            default: break;
-                        //            case -1: goto closed;
-                        //        };
-                        //    }
-                        //}
+                        if (isupgade) {
+                            fastring Upgrade = req->req.get("upgrade").as_string();
+                            if (Upgrade.starts_with('w') || Upgrade.starts_with('W')) {
+                                WEBLOG << "ws升级事件";
+                                if (_on_wsupgrade(req) == false) goto closed;
+                                fastring sendbuf;
+                                ws::upgrade_to_websocket(req->req, sendbuf);
+                                conn.send(sendbuf.data(), sendbuf.size());  //响应升级
+                                buf.reserve(0);
+                                switch (ws::handle(req,conn, req->p_wscalback_vector, _on_wsbody)) {
+                                    default: break;
+                                    case -1: goto closed;
+                                };
+                            }
+                        }
                     }
                     if (route_ok) {
                         _on_body(req);

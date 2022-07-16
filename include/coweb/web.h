@@ -9,7 +9,7 @@ namespace web {
 typedef bool (*web_callback)(REQ* req);
 class __coapi Server {
    public:
-    bool isUTF8 = true;  //默认自动转码utf8
+    bool isUTF8 = false;  //自动转码gbk2utf8
     ROUTE route;
     Server();
     ~Server();
